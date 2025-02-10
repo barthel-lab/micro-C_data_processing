@@ -1,0 +1,4 @@
+fastq/
+.DS_Store
+temp/
+*.log

@@ -1,0 +1,1 @@
+testfastq	/scratch/ychen/micro-C_IMR90/fastq/MicroC_2M_R1.fastq.gz	/scratch/ychen/micro-C_IMR90/fastq/MicroC_2M_R2.fastq.gz
