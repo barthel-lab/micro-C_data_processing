@@ -2,3 +2,8 @@ fastq/
 .DS_Store
 temp/
 *.log
+kmc_tmp/*.bin
+.Rhistory
+.snakemake/
+results/
+slurm-*.out

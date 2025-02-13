@@ -1,8 +1,8 @@
 # Configure
 # Reference genome (Make sure coresponding index files are in the same director)
 # Please refer this website of detailed alignment method https://micro-c.readthedocs.io/en/latest/fastq_to_bam.html
-ref_fasta="/tgen_labs/barthel/references/GRCh38/Homo_sapiens_assembly38.fasta"
-ref_genome="/tgen_labs/barthel/references/GRCh38/Homo_sapiens_assembly38.genome"
+ref_fasta="/tgen_labs/barthel/references/CHM13v2/chm13v2.0.fasta"
+ref_genome="/tgen_labs/barthel/references/CHM13v2/chm13v2.0.size.genome"
 srcget_qc="/tgen_labs/barthel/software/github/external/Micro-C/get_qc.py"
 srcJucier="/tgen_labs/barthel/software/github/external/Micro-C/juicer_tools_1.22.01.jar"
 
@@ -23,7 +23,8 @@ rule bwa:
         ref = ref_fasta
     threads: 32
     resources:
-         mem_mb=128728
+         mem_mb=128728,
+         time="1-11:59:59"
     shell:"""
     bwa mem -5SP -T0 -t32 \
     {params.ref} \
@@ -193,7 +194,7 @@ rule mcoolContacMatrix:
     conda:
         "micro-C"
     shell:"""
-    bgzip -c {input}
+    bgzip -c {input} > {output.parisGZ}
     pairix {output.parisGZ}
     cooler cload pairix -p 16 {params.genome}:{params.bin} {output.parisGZ} {output.cool}
     cooler zoomify --balance -p 16 {output.cool}"""
