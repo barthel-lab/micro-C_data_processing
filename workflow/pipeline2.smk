@@ -13,103 +13,105 @@ fastqls.index = fastqls['name']
 Sname = pd.Series(fastqls['name'])
 
 # KMC filter seqeuence with TTAGGG or CCCTAA
-rule KMCdb:
+rule KMCfilterR1T:
     input:
-        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][1],
-        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2]
+        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][1]
     output:
-        surR1 = "results/KMCdb/{aliquot_barcode}.R1.kmc_suf",
-        preR1 = "results/KMCdb/{aliquot_barcode}.R1.kmc_pre",
-        surR2 = "results/KMCdb/{aliquot_barcode}.R2.kmc_suf",
-        preR2 = "results/KMCdb/{aliquot_barcode}.R2.kmc_pre"
-    params:
-        outname = "results/KMCdb/{aliquot_barcode}",
-        minCount=25
+        "results/KMCfilter/{aliquot_barcode}.R1.TTAGGG.fq"
     threads: 16
     resources:
-        mem_mb=65536
+        mem_mb=65536,
+        runtime=2160
     shell:"""
-    kmc -k31 -ci{params.minCount} -m32 {input.R1} {params.outname}.R1 ./kmc_tmp/
-    kmc -k31 -ci{params.minCount} -m32 {input.R2} {params.outname}.R2 ./kmc_tmp/
+    kmc_tools -t16 filter data/KMCdb/teloT {input.R1} -ci2 {output}
+    """
+rule KMCfilterR2T:
+    input:
+        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2]
+    output:
+        "results/KMCfilter/{aliquot_barcode}.R2.TTAGGG.fq"
+    threads: 16
+    resources:
+        mem_mb=65536,
+        runtime=2160
+    shell:"""
+    kmc_tools -t16 filter data/KMCdb/teloT {input.R2} -ci2 {output}
     """
 
-rule KMCDump:
+rule KMCfilterR1C:
     input:
-        surR1 = "results/KMCdb/{aliquot_barcode}.R1.kmc_suf",
-        preR1 = "results/KMCdb/{aliquot_barcode}.R1.kmc_pre",
-        surR2 = "results/KMCdb/{aliquot_barcode}.R2.kmc_suf",
-        preR2 = "results/KMCdb/{aliquot_barcode}.R2.kmc_pre"
+        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][1]
     output:
-        dumpR1 = "results/KMCDump/{aliquot_barcode}.R1.dump.txt",
-        dumpR2 = "results/KMCDump/{aliquot_barcode}.R2.dump.txt"
-    params:
-        prefix = "results/KMCdb/{aliquot_barcode}"
-    threads: 32
+        "results/KMCfilter/{aliquot_barcode}.R1.CCCTAA.fq"
+    threads: 16
     resources:
-         mem_mb=65536,
-         time="1-11:59:59"
+        mem_mb=65536,
+        runtime=2160
     shell:"""
-        kmc_tools transform {params.prefix}.R1 dump {output.dumpR1}
-        kmc_tools transform {params.prefix}.R2 dump {output.dumpR2}
-        """
-
-rule subDump:
+    kmc_tools -t16 filter data/KMCdb/teloC {input.R1} -ci2 {output}
+    """
+rule KMCfilterR2C:
     input:
-        dumpR1 = "results/KMCDump/{aliquot_barcode}.R1.dump.txt",
-        dumpR2 = "results/KMCDump/{aliquot_barcode}.R2.dump.txt"
+        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2]
     output:
-        subDumpR1 = "results/KMCDump/{aliquot_barcode}.R1.dump.subset.txt",
-        subDumpR2 = "results/KMCDump/{aliquot_barcode}.R2.dump.subset.txt"
-    threads: 32
+        "results/KMCfilter/{aliquot_barcode}.R2.CCCTAA.fq"
+    threads: 16
     resources:
-         mem_mb=65536,
-         time="1-11:59:59"
+        mem_mb=65536,
+        runtime=2160
     shell:"""
-    cat {input.dumpR1} | sed -n '/TTAGGG.*TTAGGG/p' > {output.subDumpR1}
-    cat {input.dumpR1} | sed -n '/CCCTAA.*CCCTAA/p' >> {output.subDumpR1}
-    cat {input.dumpR2} | sed -n '/TTAGGG.*TTAGGG/p' > {output.subDumpR2}
-    cat {input.dumpR2} | sed -n '/CCCTAA.*CCCTAA/p' >> {output.subDumpR2}
+    kmc_tools -t16 filter data/KMCdb/teloC {input.R2} -ci2 {output}
     """
 
-rule patternList:
+rule getReadNames:
     input:
-        subDumpR1 = "results/KMCDump/{aliquot_barcode}.R1.dump.subset.txt",
-        subDumpR2 = "results/KMCDump/{aliquot_barcode}.R2.dump.subset.txt"
+        expand("results/KMCfilter/{aliquot_barcode}.{read}.{telo}.fq", aliquot_barcode=Sname, read=["R1","R2"], telo=["TTAGGG","CCCTAA"])
     output:
-        patternR1 = "results/patternList/{aliquot_barcode}.R1.dump.pattern.txt",
-        patternR2 = "results/patternList/{aliquot_barcode}.R2.dump.pattern.txt"
-    params:
-        minCount=255
+        R1 = "results/KMCfilter/{aliquot_barcode}.R1.readnames.txt",
+        R2 = "results/KMCfilter/{aliquot_barcode}.R2.readnames.txt"
     shell:"""
-    cat {input.subDumpR1} | awk '$2>={params.minCount}{{print $1}}' > {output.patternR1}
-    cat {input.subDumpR2} | awk '$2>={params.minCount}{{print $1}}' > {output.patternR2}
+        awk 'NR % 4 == 1 {{print $1}}'  results/KMCfilter/{wildcards.aliquot_barcode}.R1.TTAGGG.fq > {output.R1}
+        awk 'NR % 4 == 1 {{print $1}}'  results/KMCfilter/{wildcards.aliquot_barcode}.R1.CCCTAA.fq >> {output.R1}
+        awk 'NR % 4 == 1 {{print $1}}'  results/KMCfilter/{wildcards.aliquot_barcode}.R2.TTAGGG.fq > {output.R2}
+        awk 'NR % 4 == 1 {{print $1}}'  results/KMCfilter/{wildcards.aliquot_barcode}.R2.CCCTAA.fq >> {output.R2}
     """
 
-rule preFastq:
+rule unionReadNames:
     input:
-        FQ1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][1],
-        FQ2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2],
-        patternR1 = "results/patternList/{aliquot_barcode}.R1.dump.pattern.txt",
-        patternR2 = "results/patternList/{aliquot_barcode}.R2.dump.pattern.txt"
+        R1 = "results/KMCfilter/{aliquot_barcode}.R1.readnames.txt",
+        R2 = "results/KMCfilter/{aliquot_barcode}.R2.readnames.txt"
     output:
-        sFQ1 = "results/preFastq/{aliquot_barcode}.R1.filt.fastq.gz",
-        sFQ2 = "results/preFastq/{aliquot_barcode}.R2.filt.fastq.gz",
-        readnames = "results/preFastq/{aliquot_barcode}.readname.txt",
-        tmpNames = temp("results/preFastq/{aliquot_barcode}.readname.tmp.txt")
-    params:
-        prefix="{aliquot_barcode}"
+        "results/KMCfilter/{aliquot_barcode}.unionReadNames.txt"
+    shell:"""
+        python scripts/union.py {input.R1} {input.R2} {output}
+    """
+
+rule subseqR1:
+    input:
+        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][1],
+        unionReadNames = "results/KMCfilter/{aliquot_barcode}.unionReadNames.txt"
+    output:
+        sFQ1 = "results/preFastq/{aliquot_barcode}.R1.filt.fastq.gz"
     threads: 32
     resources:
-         mem_mb=65536,
-         time="1-11:59:59"
-    conda:
-        "seqkit"
+         mem_mb=128728,
+         runtime=2159
     shell:"""
-        seqkit grep -s -f {input.patternR1} {input.FQ1} | seqkit seq -n > {output.tmpNames}
-        seqkit grep -s -f {input.patternR2} {input.FQ2} | seqkit seq -n >> {output.tmpNames}
-        cat {output.tmpNames} | awk '{{print $1}}' | sort | uniq  > {output.readnames}
-        seqkit grep -f {output.readnames} {input.FQ1} -o {output.sFQ1}
-        seqkit grep -f {output.readnames} {input.FQ2} -o {output.sFQ2}
+        seqtk subseq {input.R1} {input.unionReadNames} > {output.sFQ1}
+    """
+
+rule subseqR2:
+    input:
+        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2],
+        unionReadNames = "results/KMCfilter/{aliquot_barcode}.unionReadNames.txt"
+    output:
+        sFQ2 = "results/preFastq/{aliquot_barcode}.R2.filt.fastq.gz"
+    threads: 32
+    resources:
+         mem_mb=128728,
+         runtime=2159
+    shell:"""
+        seqtk subseq {input.R2} {input.unionReadNames} > {output.sFQ2}
     """
 
 # Align your Micro-C library to the reference. Please note the specific settings that are needed to map mates independently and for optimal results with our proximity library reads.
@@ -124,7 +126,7 @@ rule bwa2:
     threads: 32
     resources:
          mem_mb=128728,
-         time="1-11:59:59"
+         runtime=2159
     shell:"""
     bwa mem -5SP -T0 -t32 \
     {params.ref} \

@@ -24,7 +24,7 @@ rule bwa:
     threads: 32
     resources:
          mem_mb=128728,
-         time="1-11:59:59"
+         runtime=2159
     shell:"""
     bwa mem -5SP -T0 -t32 \
     {params.ref} \
