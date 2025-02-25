@@ -15,7 +15,7 @@ Sname = pd.Series(fastqls['name'])
 # KMC filter seqeuence with TTAGGG or CCCTAA
 rule KMCfilterR1T:
     input:
-        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][1]
+        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[1]
     output:
         "results/KMCfilter/{aliquot_barcode}.R1.TTAGGG.fq"
     threads: 16
@@ -25,9 +25,10 @@ rule KMCfilterR1T:
     shell:"""
     kmc_tools -t16 filter data/KMCdb/teloT {input.R1} -ci1 {output}
     """
+
 rule KMCfilterR2T:
     input:
-        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2]
+        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[2]
     output:
         "results/KMCfilter/{aliquot_barcode}.R2.TTAGGG.fq"
     threads: 16
@@ -40,7 +41,7 @@ rule KMCfilterR2T:
 
 rule KMCfilterR1C:
     input:
-        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][1]
+        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[1]
     output:
         "results/KMCfilter/{aliquot_barcode}.R1.CCCTAA.fq"
     threads: 16
@@ -53,7 +54,7 @@ rule KMCfilterR1C:
 
 rule KMCfilterR2C:
     input:
-        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2]
+        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[2]
     output:
         "results/KMCfilter/{aliquot_barcode}.R2.CCCTAA.fq"
     threads: 16
@@ -89,7 +90,7 @@ rule unionReadNames:
 
 rule subseqR1:
     input:
-        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][1],
+        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[1],
         unionReadNames = "results/KMCfilter/{aliquot_barcode}.unionReadNames.txt"
     output:
         sFQ1 = "results/preFastq/{aliquot_barcode}.R1.filt.fastq.gz"
@@ -103,7 +104,7 @@ rule subseqR1:
 
 rule subseqR2:
     input:
-        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2],
+        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[2],
         unionReadNames = "results/KMCfilter/{aliquot_barcode}.unionReadNames.txt"
     output:
         sFQ2 = "results/preFastq/{aliquot_barcode}.R2.filt.fastq.gz"
@@ -121,7 +122,7 @@ rule bwa2:
         sFQ1 = "results/preFastq/{aliquot_barcode}.R1.filt.fastq.gz",
         sFQ2 = "results/preFastq/{aliquot_barcode}.R2.filt.fastq.gz"
     output:
-        temp("results/bwa_filt/{aliquot_barcode}.filt.aln.sam")
+        "results/bwa_filt/{aliquot_barcode}.filt.aln.sam"
     params:
         ref = ref_fasta
     threads: 32
@@ -141,7 +142,7 @@ rule RecordValidLigation2:
     input:
         "results/bwa_filt/{aliquot_barcode}.filt.aln.sam"
     output:
-        temp("results/RecordValidLigation_filt/{aliquot_barcode}.filt.parsed.pairsam")
+        "results/RecordValidLigation_filt/{aliquot_barcode}.filt.parsed.pairsam"
     params:
         ref = ref_fasta
     conda:
@@ -161,7 +162,7 @@ rule sortParisam2:
     input:
         "results/RecordValidLigation_filt/{aliquot_barcode}.filt.parsed.pairsam"
     output:
-        temp("results/sortParisam_filt/{aliquot_barcode}.filt.sort.pairsam")
+        "results/sortParisam_filt/{aliquot_barcode}.filt.sort.pairsam"
     threads: 32
     resources:
         mem_mb=65536
@@ -178,7 +179,7 @@ rule rmPCRDup2:
     input:
         "results/sortParisam_filt/{aliquot_barcode}.filt.sort.pairsam"
     output:
-        pairsam = temp("results/rmPCRDup_filt/{aliquot_barcode}.filt.dedup.pairsam"),
+        pairsam = "results/rmPCRDup_filt/{aliquot_barcode}.filt.dedup.pairsam",
         stats = "results/rmPCRDup_filt/{aliquot_barcode}.filt.stats.txt"
     threads: 16
     resources:
@@ -200,7 +201,7 @@ rule makePairsNSam2:
     input:
         "results/rmPCRDup_filt/{aliquot_barcode}.filt.dedup.pairsam"
     output:
-        sam = temp("results/makePairsNSam_filt/{aliquot_barcode}.filt.unsorted.sam"),
+        sam = "results/makePairsNSam_filt/{aliquot_barcode}.filt.unsorted.sam",
         pairs = "results/makePairsNSam_filt/{aliquot_barcode}.filt.mapped.pairs"
     threads: 16
     resources:
@@ -340,12 +341,8 @@ rule parisDump:
         "results/makePairsNSam_filt/{aliquot_barcode}.filt.mapped.pairs.segdump.txt"
     params:
         conf = "config/circos.conf"
-    conda:
-        "micro-C"
     shell:"""
-        cat {input} | \
-        awk '{{print $1"\t"$2"\t"$3"\t"$3+1"\n"$1"\t"$4"\t"$5"\t"$5+1}}' | \
-        sed -n '/^#/!p' > {output}
+        cat {input} | awk '{{print $1"\t"$2"\t"$3"\t"$3+1; print $1"\t"$4"\t"$5"\t"$5+1}}' | sed -n '/^#/!p' > {output}
         """
 
 # Feel free to adjust circos.template.conf for details pf ploting
