@@ -50,6 +50,7 @@ rule KMCfilterR1C:
     shell:"""
     kmc_tools -t16 filter data/KMCdb/teloC {input.R1} -ci1 {output}
     """
+
 rule KMCfilterR2C:
     input:
         R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2]
@@ -132,7 +133,8 @@ rule bwa2:
     {params.ref} \
     {input.sFQ1} \
     {input.sFQ2} \
-    -o {output}"""
+    -o {output}
+    """
 
 # We use the parse module of the pairtools pipeline to find ligation junctions in Micro-C (and other proximity ligation) libraries. When a ligation event is identified in the alignment file the pairtools pipeline will record the outer-most (5’) aligned base pair and the strand of each one of the paired reads into .pairsam file (pairsam format captures SAM entries together with the Hi-C pair information). In addition, it will also asign a pair type for each event. e.g. if both reads aligned uniquely to only one region in the genome, the type UU (Unique-Unique) will be assigned to the pair. The following steps are necessary to identify the high quality valid pairs over low quality events (e.g. due to low mapping quality):
 rule RecordValidLigation2:
@@ -152,7 +154,8 @@ rule RecordValidLigation2:
     --nproc-in 8 \
     --nproc-out 8 \
     --chroms-path {params.ref} \
-    {input} > {output}"""
+    {input} > {output}
+    """
 
 rule sortParisam2:
     input:
@@ -168,7 +171,8 @@ rule sortParisam2:
     pairtools sort \
     --nproc 16 \
     --tmpdir=temp \
-    {input} > {output}"""
+    {input} > {output}
+    """
 
 rule rmPCRDup2:
     input:
@@ -188,7 +192,8 @@ rule rmPCRDup2:
     --mark-dups \
     --output-stats {output.stats} \
     --output {output.pairsam} \
-    {input}"""
+    {input}
+    """
 
 # The pairtools split command is used to split the final .pairsam into two files: .sam (or .bam) and .pairs (.pairsam has two extra columns containing the alignments from which the Micro-C pair was extracted, these two columns are not included in .pairs files)
 rule makePairsNSam2:
@@ -208,7 +213,8 @@ rule makePairsNSam2:
     --nproc-out 8 \
     --output-pairs {output.pairs} \
     --output-sam {output.sam} \
-    {input}"""
+    {input}
+    """
 
 rule finalBam2:
     input:
@@ -225,7 +231,8 @@ rule finalBam2:
     -o {output.bam} \
     {input}
 
-    samtools index {output.bam}"""
+    samtools index {output.bam}
+    """
 
 # Post-alignment QC
 
@@ -237,7 +244,8 @@ rule LibQC2:
     params:
         src = srcget_qc
     shell:"""
-    {params.src} -p {input} > {output}"""
+    {params.src} -p {input} > {output}
+    """
 
 #rule libComXQC2:
     # input:
@@ -278,7 +286,8 @@ rule hicContacMatrix2:
     --threads 16 \
     {input} \
     {output} \
-    {params.genome}"""
+    {params.genome}
+    """
 
 rule mcoolContacMatrix2:
     input:
@@ -299,7 +308,8 @@ rule mcoolContacMatrix2:
     bgzip -c {input} > {output.parisGZ}
     pairix {output.parisGZ}
     cooler cload pairix -p 16 {params.genome}:{params.bin} {output.parisGZ} {output.cool}
-    cooler zoomify --balance -p 16 {output.cool}"""
+    cooler zoomify --balance -p 16 {output.cool}
+    """
 
 rule bamCoverge:
     input:
@@ -322,3 +332,37 @@ rule bamCoverge:
         --scaleFactor 1 \
         --normalizeUsing {params.normalization}
         """
+
+rule parisDump:
+    input:
+        "results/makePairsNSam_filt/{aliquot_barcode}.filt.mapped.pairs"
+    output:
+        "results/makePairsNSam_filt/{aliquot_barcode}.filt.mapped.pairs.segdump.txt"
+    params:
+        conf = "config/circos.conf"
+    conda:
+        "micro-C"
+    shell:"""
+        cat {input} | \
+        awk '{{print $1"\t"$2"\t"$3"\t"$3+1"\n"$1"\t"$4"\t"$5"\t"$5+1}}' | \
+        sed -n '/^#/!p' > {output}
+        """
+
+# Feel free to adjust circos.template.conf for details pf ploting
+rule plotCircos:
+    input:
+        "results/makePairsNSam_filt/{aliquot_barcode}.filt.mapped.pairs.segdump.txt"
+    output:
+        circos = "results/plotCircos/{aliquot_barcode}.circos.png",
+        new_conf = "results/plotCircos/{aliquot_barcode}.circos.config"
+    params:
+        karyotype = "/tgen_labs/barthel/software/miniforge3/envs/micro-C/data/karyotype/karyotype.human.chm13v2.txt",
+        tempConfig = "config/circos.template.conf"
+    conda:
+        "micro-C"
+    shell:"""
+        /usr/bin/cp {params.tempConfig} {output.new_conf}
+        ./scripts/makeCircosConf.sh {params.karyotype} {input} {output.new_conf}
+        circos -conf {output.new_conf} -noparanoid -outputfile {output.circos}
+        """
+# I don't know why the cp in the micro-C behaves so strange. So I called system's cp
