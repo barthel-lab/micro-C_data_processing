@@ -1,2 +1,1 @@
-MicroCtest	/scratch/ychen/micro-C_IMR90/fastq/MicroC_2M_R1.fastq.gz	/scratch/ychen/micro-C_IMR90/fastq/MicroC_2M_R2.fastq.gz
 IMR90	/scratch/ychen/micro-C_IMR90/fastq/young_GEO2457_R1.fastq.gz	/scratch/ychen/micro-C_IMR90/fastq/young_GEO2457_R2.fastq.gz

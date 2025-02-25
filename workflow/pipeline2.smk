@@ -23,7 +23,7 @@ rule KMCfilterR1T:
         mem_mb=65536,
         runtime=2160
     shell:"""
-    kmc_tools -t16 filter data/KMCdb/teloT {input.R1} -ci2 {output}
+    kmc_tools -t16 filter data/KMCdb/teloT {input.R1} -ci1 {output}
     """
 rule KMCfilterR2T:
     input:
@@ -35,7 +35,7 @@ rule KMCfilterR2T:
         mem_mb=65536,
         runtime=2160
     shell:"""
-    kmc_tools -t16 filter data/KMCdb/teloT {input.R2} -ci2 {output}
+    kmc_tools -t16 filter data/KMCdb/teloT {input.R2} -ci1 {output}
     """
 
 rule KMCfilterR1C:
@@ -48,7 +48,7 @@ rule KMCfilterR1C:
         mem_mb=65536,
         runtime=2160
     shell:"""
-    kmc_tools -t16 filter data/KMCdb/teloC {input.R1} -ci2 {output}
+    kmc_tools -t16 filter data/KMCdb/teloC {input.R1} -ci1 {output}
     """
 rule KMCfilterR2C:
     input:
@@ -60,7 +60,7 @@ rule KMCfilterR2C:
         mem_mb=65536,
         runtime=2160
     shell:"""
-    kmc_tools -t16 filter data/KMCdb/teloC {input.R2} -ci2 {output}
+    kmc_tools -t16 filter data/KMCdb/teloC {input.R2} -ci1 {output}
     """
 
 rule getReadNames:
@@ -239,22 +239,22 @@ rule LibQC2:
     shell:"""
     {params.src} -p {input} > {output}"""
 
-rule libComXQC2:
-    input:
-        "results/finalBam_filt/{aliquot_barcode}.filt.mapped.PT.bam"
-    output:
-        "results/libComX_filt/{aliquot_barcode}.filt.libComX.preseq"
-    conda:
-        "micro-C"
-    shell:"""
-    preseq lc_extrap \
-    -bam \
-    -pe \
-    -extrap 2.1e9 \
-    -step 1e8 \
-    -seg_len 1000000000 \
-    -output {output} \
-    {input}"""
+#rule libComXQC2:
+    # input:
+    #     "results/finalBam_filt/{aliquot_barcode}.filt.mapped.PT.bam"
+    # output:
+    #     "results/libComX_filt/{aliquot_barcode}.filt.libComX.preseq"
+    # conda:
+    #     "micro-C"
+    # shell:"""
+    # preseq lc_extrap \
+    # -bam \
+    # -pe \
+    # -extrap 2.1e9 \
+    # -step 1e8 \
+    # -seg_len 1000000000 \
+    # -output {output} \
+    # {input}"""
 
 # Contact Maxrix and analysis
 
@@ -300,3 +300,25 @@ rule mcoolContacMatrix2:
     pairix {output.parisGZ}
     cooler cload pairix -p 16 {params.genome}:{params.bin} {output.parisGZ} {output.cool}
     cooler zoomify --balance -p 16 {output.cool}"""
+
+rule bamCoverge:
+    input:
+        "results/finalBam_filt/{aliquot_barcode}.filt.mapped.PT.bam"
+    output:
+        "results/bamCoverage/{aliquot_barcode}.filt.mapped.PT.bigwig"
+    params:
+        bin = 100,
+        normalization = "RPKM"
+    threads: 10
+    conda:
+        "telomereC.py3.1"
+    shell:"""bamCoverage \
+        -b {input} \
+        -o {output} \
+        -of bigwig \
+        --binSize {params.bin} \
+        --numberOfProcessors 10 \
+        --ignoreDuplicates \
+        --scaleFactor 1 \
+        --normalizeUsing {params.normalization}
+        """
