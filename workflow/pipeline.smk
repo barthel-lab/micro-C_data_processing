@@ -15,8 +15,8 @@ Sname = pd.Series(fastqls['name'])
 # Align your Micro-C library to the reference. Please note the specific settings that are needed to map mates independently and for optimal results with our proximity library reads.
 rule bwa:
     input:
-        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][1],
-        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode][2]
+        R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[1],
+        R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[2]
     output:
         temp("results/bwa/{aliquot_barcode}.aln.sam")
     params:
@@ -137,22 +137,22 @@ rule LibQC:
     shell:"""
     {params.src} -p {input} > {output}"""
 
-rule libComXQC:
-    input:
-        "results/finalBam/{aliquot_barcode}.mapped.PT.bam"
-    output:
-        "results/libComX/{aliquot_barcode}.libComX.preseq"
-    conda:
-        "micro-C"
-    shell:"""
-    preseq lc_extrap \
-    -bam \
-    -pe \
-    -extrap 2.1e9 \
-    -step 1e8 \
-    -seg_len 1000000000 \
-    -output {output} \
-    {input}"""
+# rule libComXQC:
+#     input:
+#         "results/finalBam/{aliquot_barcode}.mapped.PT.bam"
+#     output:
+#         "results/libComX/{aliquot_barcode}.libComX.preseq"
+#     conda:
+#         "micro-C"
+#     shell:"""
+#     preseq lc_extrap \
+#     -bam \
+#     -pe \
+#     -extrap 2.1e9 \
+#     -step 1e8 \
+#     -seg_len 1000000000 \
+#     -output {output} \
+#     {input}"""
 
 # Contact Maxrix and analysis
 
@@ -198,3 +198,73 @@ rule mcoolContacMatrix:
     pairix {output.parisGZ}
     cooler cload pairix -p 16 {params.genome}:{params.bin} {output.parisGZ} {output.cool}
     cooler zoomify --balance -p 16 {output.cool}"""
+
+rule bamCoverge:
+    input:
+        "results/finalBam/{aliquot_barcode}.mapped.PT.bam"
+    output:
+        "results/bamCoverage/{aliquot_barcode}.mapped.PT.bigwig"
+    params:
+        bin = 100,
+        normalization = "RPKM"
+    threads: 10
+    conda:
+        "telomereC.py3.1"
+    shell:"""bamCoverage \
+        -b {input} \
+        -o {output} \
+        -of bigwig \
+        --binSize {params.bin} \
+        --numberOfProcessors 10 \
+        --ignoreDuplicates \
+        --scaleFactor 1 \
+        --normalizeUsing {params.normalization}
+        """
+
+rule parisDump:
+    input:
+        "results/makePairsNSam/{aliquot_barcode}.mapped.pairs"
+    output:
+        "results/makePairsNSam/{aliquot_barcode}.mapped.pairs.segdump.txt"
+    params:
+        conf = "config/circos.conf"
+    shell:"""
+        cat {input} | awk '{{print $1"\t"$2"\t"$3"\t"$3+1; print $1"\t"$4"\t"$5"\t"$5+1}}' | sed -n '/^#/!p' > {output}
+        """
+
+rule keepMultipleAlignPair2:
+    input:
+        "results/makePairsNSam/{aliquot_barcode}.mapped.pairs.segdump.txt"
+    output:
+        "results/makePairsNSam/{aliquot_barcode}.mapped.pairs.segdump.itinMA.txt"
+    params:
+        script="scripts/fixMAforCircos.py"
+    shell:"""
+        python {params.script} {input}
+        """
+
+# Feel free to adjust circos.template.conf for details pf ploting
+rule circoConfig:
+    input:
+        "results/makePairsNSam/{aliquot_barcode}.mapped.pairs.segdump.itinMA.txt"
+    output:
+        new_conf = "results/plotCircos/{aliquot_barcode}.circos.config"
+    params:
+        karyotype = "/tgen_labs/barthel/software/miniforge3/envs/micro-C/data/karyotype/karyotype.human.chm13v2.txt",
+        tempConfig = "config/circos.template.conf",
+        script="scripts/makeCircosConf.sh"
+    shell:"""
+        cp {params.tempConfig} {output.new_conf}
+        sh {params.script} {params.karyotype} {input} {output.new_conf}
+    """
+
+rule plotCircos:
+    input:
+        "results/plotCircos/{aliquot_barcode}.circos.config"
+    output:
+        "results/plotCircos/{aliquot_barcode}.circos.png",
+    conda:
+        "micro-C"
+    shell:"""
+        circos -conf {input} -noparanoid -outputfile {output}
+        """

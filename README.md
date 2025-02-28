@@ -2,4 +2,9 @@
 A pipeline to process micro data and output hic, mcool, and bam files.
 
 # Workflow
-![Workflow](dag.rule.svg)
+
+## Gemeral Workflo
+![GWorkflow](dag.rule.svg)
+
+## Special Workflow for Telomere-C project
+![Workflow](dag.rule.TeloC.svg)

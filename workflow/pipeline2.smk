@@ -17,7 +17,7 @@ rule KMCfilterR1T:
     input:
         R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[1]
     output:
-        "results/KMCfilter/{aliquot_barcode}.R1.TTAGGG.fq"
+        temp("results/KMCfilter/{aliquot_barcode}.R1.TTAGGG.fq")
     threads: 16
     resources:
         mem_mb=65536,
@@ -30,7 +30,7 @@ rule KMCfilterR2T:
     input:
         R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[2]
     output:
-        "results/KMCfilter/{aliquot_barcode}.R2.TTAGGG.fq"
+        temp("results/KMCfilter/{aliquot_barcode}.R2.TTAGGG.fq")
     threads: 16
     resources:
         mem_mb=65536,
@@ -43,7 +43,7 @@ rule KMCfilterR1C:
     input:
         R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[1]
     output:
-        "results/KMCfilter/{aliquot_barcode}.R1.CCCTAA.fq"
+        temp("results/KMCfilter/{aliquot_barcode}.R1.CCCTAA.fq")
     threads: 16
     resources:
         mem_mb=65536,
@@ -56,7 +56,7 @@ rule KMCfilterR2C:
     input:
         R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[2]
     output:
-        "results/KMCfilter/{aliquot_barcode}.R2.CCCTAA.fq"
+        temp("results/KMCfilter/{aliquot_barcode}.R2.CCCTAA.fq")
     threads: 16
     resources:
         mem_mb=65536,
@@ -69,8 +69,8 @@ rule getReadNames:
     input:
         expand("results/KMCfilter/{aliquot_barcode}.{read}.{telo}.fq", aliquot_barcode=Sname, read=["R1","R2"], telo=["TTAGGG","CCCTAA"])
     output:
-        R1 = "results/KMCfilter/{aliquot_barcode}.R1.readnames.txt",
-        R2 = "results/KMCfilter/{aliquot_barcode}.R2.readnames.txt"
+        R1 = temp("results/KMCfilter/{aliquot_barcode}.R1.readnames.txt"),
+        R2 = temp("results/KMCfilter/{aliquot_barcode}.R2.readnames.txt")
     shell:"""
         awk 'NR % 4 == 1 {{print $1}}'  results/KMCfilter/{wildcards.aliquot_barcode}.R1.TTAGGG.fq > {output.R1}
         awk 'NR % 4 == 1 {{print $1}}'  results/KMCfilter/{wildcards.aliquot_barcode}.R1.CCCTAA.fq >> {output.R1}
@@ -83,7 +83,7 @@ rule unionReadNames:
         R1 = "results/KMCfilter/{aliquot_barcode}.R1.readnames.txt",
         R2 = "results/KMCfilter/{aliquot_barcode}.R2.readnames.txt"
     output:
-        "results/KMCfilter/{aliquot_barcode}.unionReadNames.txt"
+        temp("results/KMCfilter/{aliquot_barcode}.unionReadNames.txt")
     shell:"""
         python scripts/union.py {input.R1} {input.R2} {output}
     """
@@ -93,7 +93,7 @@ rule subseqR1:
         R1 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[1],
         unionReadNames = "results/KMCfilter/{aliquot_barcode}.unionReadNames.txt"
     output:
-        sFQ1 = "results/preFastq/{aliquot_barcode}.R1.filt.fastq.gz"
+        sFQ1 = temp("results/preFastq/{aliquot_barcode}.R1.filt.fastq.gz")
     threads: 32
     resources:
          mem_mb=128728,
@@ -107,7 +107,7 @@ rule subseqR2:
         R2 = lambda wildcards: fastqls.loc[wildcards.aliquot_barcode].iloc[2],
         unionReadNames = "results/KMCfilter/{aliquot_barcode}.unionReadNames.txt"
     output:
-        sFQ2 = "results/preFastq/{aliquot_barcode}.R2.filt.fastq.gz"
+        sFQ2 = temp("results/preFastq/{aliquot_barcode}.R2.filt.fastq.gz")
     threads: 32
     resources:
          mem_mb=128728,
@@ -138,31 +138,33 @@ rule bwa2:
     """
 
 # We use the parse module of the pairtools pipeline to find ligation junctions in Micro-C (and other proximity ligation) libraries. When a ligation event is identified in the alignment file the pairtools pipeline will record the outer-most (5’) aligned base pair and the strand of each one of the paired reads into .pairsam file (pairsam format captures SAM entries together with the Hi-C pair information). In addition, it will also asign a pair type for each event. e.g. if both reads aligned uniquely to only one region in the genome, the type UU (Unique-Unique) will be assigned to the pair. The following steps are necessary to identify the high quality valid pairs over low quality events (e.g. due to low mapping quality):
+# Special setting for Telomere-C: Keep mutiple alingnment  --walks-policy 5unique -> all; only one end mapped is OK.
 rule RecordValidLigation2:
     input:
         "results/bwa_filt/{aliquot_barcode}.filt.aln.sam"
     output:
-        "results/RecordValidLigation_filt/{aliquot_barcode}.filt.parsed.pairsam"
+        temp("results/RecordValidLigation_filt/{aliquot_barcode}.filt.parsed.pairsam")
     params:
         ref = ref_fasta
     conda:
         "micro-C"
     shell:"""
     pairtools parse \
-    --min-mapq 40 \
-    --walks-policy 5unique \
+    --add-columns mapq \
+    --walks-policy all \
     --max-inter-align-gap 30 \
     --nproc-in 8 \
     --nproc-out 8 \
     --chroms-path {params.ref} \
-    {input} > {output}
+    {input} | \
+    pairtools select '(mapq1 >= 40) or (mapq2 >= 40)' > {output}
     """
 
 rule sortParisam2:
     input:
         "results/RecordValidLigation_filt/{aliquot_barcode}.filt.parsed.pairsam"
     output:
-        "results/sortParisam_filt/{aliquot_barcode}.filt.sort.pairsam"
+        temp("results/sortParisam_filt/{aliquot_barcode}.filt.sort.pairsam")
     threads: 32
     resources:
         mem_mb=65536
@@ -180,6 +182,7 @@ rule rmPCRDup2:
         "results/sortParisam_filt/{aliquot_barcode}.filt.sort.pairsam"
     output:
         pairsam = "results/rmPCRDup_filt/{aliquot_barcode}.filt.dedup.pairsam",
+        unmappairsam = "results/rmPCRDup_filt/{aliquot_barcode}.filt.dedup.unmap.pairsam",
         stats = "results/rmPCRDup_filt/{aliquot_barcode}.filt.stats.txt"
     threads: 16
     resources:
@@ -192,6 +195,7 @@ rule rmPCRDup2:
     --nproc-out 8 \
     --mark-dups \
     --output-stats {output.stats} \
+    --output-unmapped {output.unmappairsam} \
     --output {output.pairsam} \
     {input}
     """
@@ -217,6 +221,27 @@ rule makePairsNSam2:
     {input}
     """
 
+rule makePairsNSam2Unmap:
+    input:
+        "results/rmPCRDup_filt/{aliquot_barcode}.filt.dedup.unmap.pairsam"
+    output:
+        sam = "results/makePairsNSam_filt/{aliquot_barcode}.filt.unsorted.unmap.sam",
+        pairs = "results/makePairsNSam_filt/{aliquot_barcode}.filt.unmap.pairs"
+    threads: 16
+    resources:
+        mem_mb=32768
+    conda:
+        "micro-C"
+    shell:"""
+    pairtools split \
+    --nproc-in 8 \
+    --nproc-out 8 \
+    --output-pairs {output.pairs} \
+    --output-sam {output.sam} \
+    {input}
+    """
+
+
 rule finalBam2:
     input:
         "results/makePairsNSam_filt/{aliquot_barcode}.filt.unsorted.sam"
@@ -234,6 +259,23 @@ rule finalBam2:
 
     samtools index {output.bam}
     """
+rule finalBam2Unmap:
+    input:
+        "results/makePairsNSam_filt/{aliquot_barcode}.filt.unsorted.unmap.sam"
+    output:
+        bam = "results/finalBam_filt/{aliquot_barcode}.filt.unmapped.PT.bam",
+        bai = "results/finalBam_filt/{aliquot_barcode}.filt.unmapped.PT.bam.bai"
+    threads: 32
+    resources:
+        mem_mb=65536
+    shell:"""
+    samtools sort -@16 \
+    -T temp \
+    -o {output.bam} \
+    {input}
+
+    samtools index {output.bam}
+    """    
 
 # Post-alignment QC
 
@@ -312,11 +354,11 @@ rule mcoolContacMatrix2:
     cooler zoomify --balance -p 16 {output.cool}
     """
 
-rule bamCoverge:
+rule bamCoverge2:
     input:
         "results/finalBam_filt/{aliquot_barcode}.filt.mapped.PT.bam"
     output:
-        "results/bamCoverage/{aliquot_barcode}.filt.mapped.PT.bigwig"
+        "results/bamCoverage_filt/{aliquot_barcode}.filt.mapped.PT.bigwig"
     params:
         bin = 100,
         normalization = "RPKM"
@@ -334,7 +376,29 @@ rule bamCoverge:
         --normalizeUsing {params.normalization}
         """
 
-rule parisDump:
+rule bamCovergeUnmap:
+    input:
+        "results/finalBam_filt/{aliquot_barcode}.filt.unmapped.PT.bam"
+    output:
+        "results/bamCoverage_filt/{aliquot_barcode}.filt.unmapped.PT.bigwig"
+    params:
+        bin = 100,
+        normalization = "RPKM"
+    threads: 10
+    conda:
+        "telomereC.py3.1"
+    shell:"""bamCoverage \
+        -b {input} \
+        -o {output} \
+        -of bigwig \
+        --binSize {params.bin} \
+        --numberOfProcessors 10 \
+        --ignoreDuplicates \
+        --scaleFactor 1 \
+        --normalizeUsing {params.normalization}
+        """
+
+rule parisDump2:
     input:
         "results/makePairsNSam_filt/{aliquot_barcode}.filt.mapped.pairs"
     output:
@@ -345,21 +409,39 @@ rule parisDump:
         cat {input} | awk '{{print $1"\t"$2"\t"$3"\t"$3+1; print $1"\t"$4"\t"$5"\t"$5+1}}' | sed -n '/^#/!p' > {output}
         """
 
-# Feel free to adjust circos.template.conf for details pf ploting
-rule plotCircos:
+rule keepMultipleAlignPair:
     input:
         "results/makePairsNSam_filt/{aliquot_barcode}.filt.mapped.pairs.segdump.txt"
     output:
-        circos = "results/plotCircos/{aliquot_barcode}.circos.png",
-        new_conf = "results/plotCircos/{aliquot_barcode}.circos.config"
+        "results/makePairsNSam_filt/{aliquot_barcode}.filt.mapped.pairs.segdump.itinMA.txt"
+    params:
+        script="scripts/fixMAforCircos.py"
+    shell:"""
+        python {params.script} {input}
+    """
+
+# Feel free to adjust circos.template.conf for details pf ploting
+rule circoConfig:
+    input:
+        "results/makePairsNSam_filt/{aliquot_barcode}.filt.mapped.pairs.segdump.itinMA.txt"
+    output:
+        new_conf = "results/plotCircos_filt/{aliquot_barcode}.circos.config"
     params:
         karyotype = "/tgen_labs/barthel/software/miniforge3/envs/micro-C/data/karyotype/karyotype.human.chm13v2.txt",
-        tempConfig = "config/circos.template.conf"
+        tempConfig = "config/circos.template.conf",
+        script="scripts/makeCircosConf.sh"
+    shell:"""
+        cp {params.tempConfig} {output.new_conf}
+        sh {params.script} {params.karyotype} {input} {output.new_conf}
+    """    
+
+rule plotCircos:
+    input:
+        "results/plotCircos_filt/{aliquot_barcode}.circos.config"
+    output:
+        "results/plotCircos_filt/{aliquot_barcode}.circos.png",
     conda:
         "micro-C"
     shell:"""
-        /usr/bin/cp {params.tempConfig} {output.new_conf}
-        ./scripts/makeCircosConf.sh {params.karyotype} {input} {output.new_conf}
-        circos -conf {output.new_conf} -noparanoid -outputfile {output.circos}
+        circos -conf {input} -noparanoid -outputfile {output}
         """
-# I don't know why the cp in the micro-C behaves so strange. So I called system's cp
