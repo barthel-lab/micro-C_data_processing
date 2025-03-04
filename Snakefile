@@ -22,6 +22,7 @@ rule all:
         expand("results/contacMatrix_filt/{aliquot_barcode}.filt.contact_map.hic", aliquot_barcode=Sname),
         expand("results/coolerMatrix_filt/{aliquot_barcode}.filt.matrix_1kb.cool", aliquot_barcode=Sname),
         expand("results/coolerMatrix_filt/{aliquot_barcode}.filt.matrix_1kb.mcool", aliquot_barcode=Sname),
-        expand("results/plotCircos_filt/{aliquot_barcode}.circos.png", aliquot_barcode=Sname)
+        expand("results/plotCircos_filt/{aliquot_barcode}.circos.png", aliquot_barcode=Sname),
+        expand("results/finalBam_filt/{aliquot_barcode}.filt.{map}.PT.bam.stat", aliquot_barcode=Sname, map=["mapped","unmapped"])
         
 

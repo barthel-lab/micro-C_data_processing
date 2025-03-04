@@ -83,7 +83,7 @@ rule unionReadNames:
         R1 = "results/KMCfilter/{aliquot_barcode}.R1.readnames.txt",
         R2 = "results/KMCfilter/{aliquot_barcode}.R2.readnames.txt"
     output:
-        temp("results/KMCfilter/{aliquot_barcode}.unionReadNames.txt")
+        "results/KMCfilter/{aliquot_barcode}.unionReadNames.txt"
     shell:"""
         python scripts/union.py {input.R1} {input.R2} {output}
     """
@@ -259,6 +259,18 @@ rule finalBam2:
 
     samtools index {output.bam}
     """
+
+rule finalBam2Stat:
+    input:
+        "results/finalBam_filt/{aliquot_barcode}.filt.mapped.PT.bam"
+    output:
+        "results/finalBam_filt/{aliquot_barcode}.filt.mapped.PT.bam.stat"
+    shell:"""
+        samtools flagstat {input} > {output}
+        int=$(samtools view {input} |cut -f1|sort|uniq|wc -l)
+        echo "Number unique readID: $int" >> {output}
+        """
+
 rule finalBam2Unmap:
     input:
         "results/makePairsNSam_filt/{aliquot_barcode}.filt.unsorted.unmap.sam"
@@ -276,6 +288,17 @@ rule finalBam2Unmap:
 
     samtools index {output.bam}
     """    
+
+rule finalBamUnmap2Stat:
+    input:
+        "results/finalBam_filt/{aliquot_barcode}.filt.unmapped.PT.bam"
+    output:
+        "results/finalBam_filt/{aliquot_barcode}.filt.unmapped.PT.bam.stat"
+    shell:"""
+        samtools flagstat {input} > {output}
+        int=$(samtools view {input} |cut -f1|sort|uniq|wc -l)
+        echo "unique read ID: $int" >> {output}
+        """
 
 # Post-alignment QC
 
