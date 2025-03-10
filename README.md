@@ -2,6 +2,7 @@
 A Snakemake pipeline to process micro-C data and output hic, mcool, and bam files.
 
 Paper: https://onlinelibrary.wiley.com/doi/10.1111/acel.14083
+
 Mirco-C doc: https://micro-c.readthedocs.io/en/latest/index.html
 
 You can switch general or Telomere-Associated micro-C by commenting in the Snakefile.
@@ -18,6 +19,7 @@ In addition to standard rules, the following tools are provided for data visuali
 * `circoConfig2` and `plotCircos2`: Creates a Circos plot to visualize trans interactions between genomic regions.
  
 **General workflow**
+
 ![GWorkflow](dag.rule.svg)
 
 ## Telomere-Associated micro-C Pipeline
@@ -41,7 +43,7 @@ To rescue telomere reads in the alignment, modifications were made to the follow
 
 These modifications enable the analysis of telomere-associated micro-C data and provide a more comprehensive understanding of its characteristics.
 
-## MultiQC
+### MultiQC
 
 This pipeline generates mutiple QC metrics. You could run `multiQC` to get collective QC report.
 
