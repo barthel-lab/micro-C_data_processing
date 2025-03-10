@@ -244,7 +244,7 @@ rule keepMultipleAlignPair2:
         """
 
 # Feel free to adjust circos.template.conf for details pf ploting
-rule circoConfig:
+rule circoConfig2:
     input:
         "results/makePairsNSam/{aliquot_barcode}.mapped.pairs.segdump.itinMA.txt"
     output:
@@ -258,7 +258,7 @@ rule circoConfig:
         sh {params.script} {params.karyotype} {input} {output.new_conf}
     """
 
-rule plotCircos:
+rule plotCircos2:
     input:
         "results/plotCircos/{aliquot_barcode}.circos.config"
     output:
