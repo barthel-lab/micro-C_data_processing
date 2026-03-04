@@ -1,82 +1,92 @@
-# micro-C_data_processing
-A Snakemake pipeline to process micro-C data and output hic, mcool, and bam files.
+# micro-C Data Processing
 
-Paper: https://onlinelibrary.wiley.com/doi/10.1111/acel.14083
+A Snakemake pipeline to process micro-C data and output `.hic`, `.mcool`, and `.bam` files.
 
-Mirco-C doc: https://micro-c.readthedocs.io/en/latest/index.html
+**Paper:** [Chen et al., *Aging Cell* (2024)](https://onlinelibrary.wiley.com/doi/10.1111/acel.14083)
 
-You can switch general or Telomere-Associated micro-C by commenting in the Snakefile.
+**Micro-C documentation:** [https://micro-c.readthedocs.io](https://micro-c.readthedocs.io/en/latest/index.html)
 
-## General pipeline 
+The pipeline supports two modes, switchable by commenting/uncommenting the `include` line in the `Snakefile`:
+- **General micro-C pipeline** (`workflow/pipeline.smk`) -- standard Hi-C/micro-C processing
+- **Telomere-Associated micro-C pipeline** (`workflow/pipeline2.smk`) -- telomere-enriched micro-C analysis
 
-For detailed information, please refer to the micro-C documentation.
+---
 
-**Visualization Rules**
+## General Pipeline
 
-In addition to standard rules, the following tools are provided for data visualization:
+A standard micro-C workflow: alignment, pair parsing, deduplication, contact matrix generation, and visualization. For detailed information, please refer to the [micro-C documentation](https://micro-c.readthedocs.io/en/latest/index.html).
 
-* `bamCoverage`: Generates a coverage plot in IGV (Integrated Genome Viewer) to visualize read coverage.
-* `circoConfig2` and `plotCircos2`: Creates a Circos plot to visualize trans interactions between genomic regions.
- 
-**General workflow**
+**Visualization rules:**
 
-![GWorkflow](dag.rule.svg)
+- `bamCoverage` -- generates a bigWig coverage track for IGV.
+- `circoConfig2` and `plotCircos2` -- creates a Circos plot to visualize trans interactions between genomic regions.
+
+**Workflow:**
+
+![General workflow](dag.rule.svg)
+
+---
 
 ## Telomere-Associated micro-C Pipeline
 
-This pipeline is specifically for filtering and analyzing sequences associated with telomeres in fastq files. The rules below outline the modifications made to the original micro-C pipeline to accommodate this analysis.
+This pipeline filters and analyzes sequences associated with telomeres in fastq files. The rules below outline the modifications made to the general micro-C pipeline to accommodate this analysis.
 
 ### Filtering and Alignment Rules
 
-* `KMCfilterR1T`, `KMCfilterR1C`, `KMCfilterR2T`, `KMCfilterR2C`: Filter fastq files containing specific telomere sequences (TTAGGG or CCCTAA) in the read 1 or read 2.
-* `getReadNames` and `unionReadNames`: Collect unique read names with matching telomere sequences in either read 1 or read 2.
-* `subseqR1` and `subseqR2`: Use the collected unique read name lists to filter original fastq R1 and R2 files for alignment.
+- `KMCfilterR1T`, `KMCfilterR1C`, `KMCfilterR2T`, `KMCfilterR2C` -- filter fastq files for reads containing telomere sequences (TTAGGG or CCCTAA) in read 1 or read 2.
+- `getReadNames` and `unionReadNames` -- collect unique read names with matching telomere sequences from either read.
+- `subseqR1` and `subseqR2` -- extract the matched read pairs from the original fastq files for alignment.
 
 ### Modified Alignment Rules
 
 To rescue telomere reads in the alignment, modifications were made to the following rules:
 
-* `RecordValidLigation2`:
-    + Added `--add-columns mapq` option to include mapping quality information.
-    + Piped results to pairtools select with a condition that only one read must have a minimum mapq of 40, allowing for rescue of telomere-containing read pairs that are poorly mapped due to high repetitivity. The `--walks-policy all` parameter was also modified to keep all types of alignments and allow multiple alignments.
-* `rmPCRDup2`: Added `--output-unmapped {output.unmappairsam}` option to output unmapped reads, which are typically telomeres that are poorly mapped due to high repetitivity. These unmapped reads are then considered as read pairs containing telomeres.
-
-These modifications enable the analysis of telomere-associated micro-C data and provide a more comprehensive understanding of its characteristics.
+- `RecordValidLigation2`:
+    - Added `--add-columns mapq` to include mapping quality information.
+    - Piped results to `pairtools select` with the condition `(mapq1 >= 40) or (mapq2 >= 40)`, allowing rescue of telomere-containing read pairs where one mate is poorly mapped due to high repetitivity. The `--walks-policy all` parameter keeps all alignment types including multiple alignments.
+- `rmPCRDup2`: Added `--output-unmapped` to output unmapped reads, which are typically telomere reads that are poorly mapped due to high repetitivity. These unmapped reads are then included as telomere-associated read pairs.
 
 ### MultiQC
 
-This pipeline generates mutiple QC metrics. You could run `multiQC` to get collective QC report.
+This pipeline generates multiple QC metrics. Run MultiQC to get a collective QC report:
 
-```
+```bash
 multiqc results/*
 ```
 
-**Telomere associated workflow**
-![Workflow](dag.rule.TeloC.svg)
+**Workflow:**
 
-## Dependency
+![Telomere-associated workflow](dag.rule.TeloC.svg)
+
+---
+
+## Dependencies
 
 ### Required Software and Tools
 
-- KMC_tools
-- seqtk
-- BWA
-- pairtools
-- SAMtools
-- pairix
-- cooler
-- bamCoverage (deepTools)
+- [BWA](https://github.com/lh3/bwa)
+- [pairtools](https://github.com/open2c/pairtools)
+- [SAMtools](https://www.htslib.org/)
+- [pairix](https://github.com/4dn-dcic/pairix)
+- [cooler](https://github.com/open2c/cooler)
+- [bamCoverage (deepTools)](https://deeptools.readthedocs.io/)
+- [Circos](http://circos.ca/)
+- [Juicer Tools](https://github.com/aidenlab/juicer)
+- [KMC](https://github.com/refresh-bio/KMC) (Telomere-C pipeline only)
+- [seqtk](https://github.com/lh3/seqtk) (Telomere-C pipeline only)
 
-### Required Conda Environment
+### Required Conda Environments
 
-- telomereC.py3.1
-- micro-C
+- `micro-C` -- pairtools, cooler, pairix, bgzip, circos
+- `telomereC.py3.1` -- bamCoverage (deepTools)
+
+---
 
 ## Pre-run Check
 
 Before running the pipeline, use the pre-run check script to verify that all inputs, reference files, tools, and conda environments are available:
 
-```
+```bash
 bash scripts/prerun_check.sh
 ```
 
@@ -85,34 +95,32 @@ This script checks:
 - Reference genome and BWA index files
 - External scripts and tools (get_qc.py, juicer_tools, circos karyotype)
 - Software in PATH (bwa, samtools, snakemake, java, python)
-- Conda environments (micro-C, telomereC.py3.1) and their tools
+- Conda environments and their tools
 - Snakefile configuration (which pipeline is active)
 
-## Configures
+---
 
-### Configuring Input Fastq Files
+## Configuration
 
-**Editing `fastqList.txt`**
+### Input Fastq Files
 
-Open the file `fastqList.txt` in a text editor to configure your input fastq files. This is where you'll specify the sample names, paths to read 1 and read 2 fastq files for each sample.
-
-**Example Format:**
+Edit `fastqList.txt` to specify sample names and paths to read 1 and read 2 fastq files (tab-separated):
 
 ```
-sample1    /home/fastq/sample1.R1.fastq    /home/fastq/sample1.R2.fastq
-sample2    /home/fastq/sample2.R1.fastq    /home/fastq/sample2.R2.fastq
+sample1	/path/to/sample1.R1.fastq.gz	/path/to/sample1.R2.fastq.gz
+sample2	/path/to/sample2.R1.fastq.gz	/path/to/sample2.R2.fastq.gz
 ```
 
-### Configuring Circos Plots
+### Circos Plots
 
-Circos plots are generated dynamically using the configuration file `conf/circos.template.conf`. This template configuration file controls the appearance and output of all circos plots generated by our pipeline.
+Circos plots are generated using the template configuration file `config/circos.template.conf`. Modify this file to customize the appearance of all generated Circos plots.
 
-To customize your circos plot output, simply modify the configuration settings in conf/circos.template.conf to suit your needs. Changes made to this file will be reflected in all generated circos plots.
+### Telomere Pattern Filtering
 
-### Configuring Telomere Pattern Filtering
+By default, the pipeline filters for reads containing at least 10 repeats of TTAGGG or CCCTAA (60 bp total).
 
-By default, our pipeline filters fastq files for sequences containing at least 1 set of (TTAGGGTTAGGGTTAGGGTTAGGGTTAGGGTTAGGGTTAGGGTTAGGGTTAGGGTTAGGG) or (CCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAA).
+To customize the filtering criteria:
 
-If you need to create custom filtering criteria, you can modify the dummy fastq files `data/dummyFastq/dummy.TTAGGG.fq` or `data/dummyFastq/dummy.CCCTAA.fq` to match your specific requirements. Then, use the `scripts/makeDummyKMCdb.sh` script to generate a new KMC database (*.kmc_pre and *.kmc_suf) for these modified files.
-
-Once you've generated the new KMC database, replace the existing files in `data/KMCdb/` with your custom KMC databases. This will update the pipeline's filtering criteria to reflect your customized requirements.
+1. Modify the dummy fastq files in `data/dummyFastq/` (`dummy.TTAGGG.fq` or `dummy.CCCTAA.fq`).
+2. Run `scripts/makeDummyKMCdb.sh` to generate new KMC databases.
+3. Replace the files in `data/KMCdb/` with the new databases.
