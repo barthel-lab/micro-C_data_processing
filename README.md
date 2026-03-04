@@ -72,6 +72,22 @@ multiqc results/*
 - telomereC.py3.1
 - micro-C
 
+## Pre-run Check
+
+Before running the pipeline, use the pre-run check script to verify that all inputs, reference files, tools, and conda environments are available:
+
+```
+bash scripts/prerun_check.sh
+```
+
+This script checks:
+- `fastqList.txt` format and fastq file paths
+- Reference genome and BWA index files
+- External scripts and tools (get_qc.py, juicer_tools, circos karyotype)
+- Software in PATH (bwa, samtools, snakemake, java, python)
+- Conda environments (micro-C, telomereC.py3.1) and their tools
+- Snakefile configuration (which pipeline is active)
+
 ## Configures
 
 ### Configuring Input Fastq Files
