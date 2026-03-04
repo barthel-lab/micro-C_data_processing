@@ -124,3 +124,11 @@ To customize the filtering criteria:
 1. Modify the dummy fastq files in `data/dummyFastq/` (`dummy.TTAGGG.fq` or `dummy.CCCTAA.fq`).
 2. Run `scripts/makeDummyKMCdb.sh` to generate new KMC databases.
 3. Replace the files in `data/KMCdb/` with the new databases.
+
+---
+
+## Note on Hi-C Compatibility
+
+This general pipeline can also process Hi-C data (e.g., Arima Hi-C) without parameter changes, as the pairtools-based workflow (`bwa mem -5SP -T0`, `pairtools parse --min-mapq 40 --walks-policy 5unique --max-inter-align-gap 30`) is the same for both micro-C and Hi-C.
+
+The one difference is that `juicer_tools pre` in the `hicContacMatrix` rule does not use restriction enzyme site information. This means enzyme-aware normalization (e.g., Knight-Ruiz with fragment-level correction) will not be applied in the `.hic` output. For cooler/mcool-based analyses, this has no effect.
