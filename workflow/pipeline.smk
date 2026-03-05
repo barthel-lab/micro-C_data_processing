@@ -137,6 +137,36 @@ rule LibQC:
     shell:"""
     {params.src} -p {input} > {output}"""
 
+rule pairtoolsStats:
+    input:
+        "results/makePairsNSam/{aliquot_barcode}.mapped.pairs"
+    output:
+        "results/QC/{aliquot_barcode}.pairtools.stats.yaml"
+    conda:
+        "micro-C"
+    shell:"""
+    pairtools stats --yaml -o {output} {input}"""
+
+rule samtoolsStats:
+    input:
+        "results/finalBam/{aliquot_barcode}.mapped.PT.bam"
+    output:
+        "results/QC/{aliquot_barcode}.samtools.stats.txt"
+    shell:"""
+    samtools stats {input} > {output}"""
+
+rule multiQC:
+    input:
+        expand("results/QC/{aliquot_barcode}.pairtools.stats.yaml", aliquot_barcode=Sname),
+        expand("results/QC/{aliquot_barcode}.samtools.stats.txt", aliquot_barcode=Sname),
+        expand("results/rmPCRDup/{aliquot_barcode}.stats.txt", aliquot_barcode=Sname)
+    output:
+        "results/multiQC/multiqc_report.html"
+    conda:
+        "micro-C"
+    shell:"""
+    multiqc results/ -o results/multiQC -f"""
+
 # rule libComXQC:
 #     input:
 #         "results/finalBam/{aliquot_barcode}.mapped.PT.bam"

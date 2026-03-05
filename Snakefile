@@ -13,7 +13,10 @@ rule all:
         expand("results/contacMatrix/{aliquot_barcode}.contact_map.hic", aliquot_barcode=Sname),
         expand("results/coolerMatrix/{aliquot_barcode}.matrix_1kb.cool", aliquot_barcode=Sname),
         expand("results/coolerMatrix/{aliquot_barcode}.matrix_1kb.mcool", aliquot_barcode=Sname),
-        expand("results/plotCircos/{aliquot_barcode}.circos.png", aliquot_barcode=Sname)
+        expand("results/plotCircos/{aliquot_barcode}.circos.png", aliquot_barcode=Sname),
+        expand("results/QC/{aliquot_barcode}.pairtools.stats.yaml", aliquot_barcode=Sname),
+        expand("results/QC/{aliquot_barcode}.samtools.stats.txt", aliquot_barcode=Sname),
+        "results/multiQC/multiqc_report.html"
 # Telomere-C special
       #  expand("results/LibQC_filt/{aliquot_barcode}.filt.QC.txt", aliquot_barcode=Sname),
       #  expand("results/bamCoverage_filt/{aliquot_barcode}.filt.mapped.PT.bigwig", aliquot_barcode=Sname),
