@@ -163,7 +163,7 @@ rule multiQC:
     output:
         "results/multiQC/multiqc_report.html"
     conda:
-        "micro-C"
+        "telomereC.py3.1"
     shell:"""
     multiqc results/ -o results/multiQC -f"""
 
@@ -274,27 +274,27 @@ rule keepMultipleAlignPair2:
         """
 
 # Feel free to adjust circos.template.conf for details pf ploting
-rule circoConfig2:
-    input:
-        "results/makePairsNSam/{aliquot_barcode}.mapped.pairs.segdump.itinMA.txt"
-    output:
-        new_conf = "results/plotCircos/{aliquot_barcode}.circos.config"
-    params:
-        karyotype = "/tgen_labs/barthel/software/miniforge3/envs/micro-C/data/karyotype/karyotype.human.chm13v2.txt",
-        tempConfig = "config/circos.template.conf",
-        script="scripts/makeCircosConf.sh"
-    shell:"""
-        cp {params.tempConfig} {output.new_conf}
-        sh {params.script} {params.karyotype} {input} {output.new_conf}
-    """
+#rule circoConfig2:
+#    input:
+#        "results/makePairsNSam/{aliquot_barcode}.mapped.pairs.segdump.itinMA.txt"
+#    output:
+#        new_conf = "results/plotCircos/{aliquot_barcode}.circos.config"
+#    params:
+#        karyotype = "/tgen_labs/barthel/software/miniforge3/envs/micro-C/data/karyotype/karyotype.human.chm13v2.txt",
+#        tempConfig = "config/circos.template.conf",
+#        script="scripts/makeCircosConf.sh"
+#    shell:"""
+#        cp {params.tempConfig} {output.new_conf}
+#        sh {params.script} {params.karyotype} {input} {output.new_conf}
+#    """
 
-rule plotCircos2:
-    input:
-        "results/plotCircos/{aliquot_barcode}.circos.config"
-    output:
-        "results/plotCircos/{aliquot_barcode}.circos.png",
-    conda:
-        "micro-C"
-    shell:"""
-        circos -conf {input} -noparanoid -outputfile {output}
-        """
+#rule plotCircos2:
+#    input:
+#        "results/plotCircos/{aliquot_barcode}.circos.config"
+#    output:
+#        "results/plotCircos/{aliquot_barcode}.circos.png",
+#    conda:
+#        "micro-C"
+#    shell:"""
+#        circos -conf {input} -noparanoid -outputfile {output}
+#        """
